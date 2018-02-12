@@ -5,9 +5,7 @@
 *
 */
 
-import _ = require('./lodashMini');
-
-import Options from './Options';
+import { noop } from './lodashMini';
 
 export interface Performance {
     mark: (name: string) => void;
@@ -24,8 +22,8 @@ function getPerformanceImpl(): Performance {
     }
 
     return {
-        mark: _.noop,
-        measure: _.noop,
+        mark: noop,
+        measure: noop,
     };
 }
 
@@ -33,13 +31,6 @@ const BuildStateBeginMark = 'ComponentBase._buildState begin';
 const BuildStateEndMark = 'ComponentBase._buildState end';
 const CallbackBeginMark = 'StoreBase callbacks begin';
 const CallbackEndMark = 'StoreBase callbacks end';
-
-// replace method implementation with noop outside of development mode
-function devOnly(target: any, propertyKey: string, descriptor: PropertyDescriptor) {
-    if (!Options.development && descriptor) {
-        descriptor.value = _.noop;
-    }
-}
 
 export class Instrumentation {
     constructor(private performance = getPerformanceImpl()) {
@@ -59,24 +50,20 @@ export class Instrumentation {
         }
     }
 
-    @devOnly
-    beginBuildState() {
+    public beginBuildState() {
         this.performance.mark(BuildStateBeginMark);
     }
 
-    @devOnly
-    endBuildState(target: any) {
+    public endBuildState(target: any) {
         const measureName = `🌀 ${target.name || 'ComponentBase'} build state`;
         this._measure(measureName, BuildStateBeginMark, BuildStateEndMark);
     }
 
-    @devOnly
-    beginInvokeStoreCallbacks() {
+    public beginInvokeStoreCallbacks() {
         this.performance.mark(CallbackBeginMark);
     }
 
-    @devOnly
-    endInvokeStoreCallbacks(target: any, count: number) {
+    public endInvokeStoreCallbacks(target: any, count: number) {
         const measureName = `📦 ${target.name || 'StoreBase'} callbacks(${count})`;
         this._measure(measureName, CallbackBeginMark, CallbackEndMark);
     }

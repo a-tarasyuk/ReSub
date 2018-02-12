@@ -12,11 +12,18 @@ import assert = require('assert');
 import _ = require('./lodashMini');
 import React = require('react');
 
-import Instrumentation from './Instrumentation';
 import Options from './Options';
+import Instrumentation from './Instrumentation';
 import { AutoSubscription, StoreBase } from './StoreBase';
 import { enableAutoSubscribe, enableAutoSubscribeWrapper, forbidAutoSubscribeWrapper } from './AutoSubscriptions';
 import { SubscriptionCallbackFunction, SubscriptionCallbackBuildStateFunction, StoreSubscription } from './Types';
+
+/**
+ * @see https://www.typescriptlang.org/docs/handbook/modules.html#optional-module-loading-and-other-advanced-loading-scenarios
+ * Import Instrumentation class only in development mode
+ */
+const instrumentation: typeof Instrumentation = Options.development
+    && require('./Instrumentation').default;
 
 // Subscriptions without a key need some way to be identified in the SubscriptionLookup.
 const SubKeyNoKey = '%$^NONE';
@@ -429,9 +436,13 @@ export abstract class ComponentBase<P extends React.Props<any>, S extends Object
             sub.used = false;
         });
 
-        Instrumentation.beginBuildState();
+        Options.development
+            && instrumentation.beginBuildState();
+
         const state = this._buildState(props, initialBuild);
-        Instrumentation.endBuildState(this.constructor);
+
+        Options.development &&
+            instrumentation.endBuildState(this.constructor);
 
         _.remove(this._handledAutoSubscriptions, subscription => {
             if (this._shouldRemoveAndCleanupAutoSubscription(subscription)) {

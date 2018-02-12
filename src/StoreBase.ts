@@ -19,6 +19,13 @@ import MapShim from './MapShim';
 import Options from './Options';
 import { SubscriptionCallbackFunction } from './Types';
 
+/**
+ * @see https://www.typescriptlang.org/docs/handbook/modules.html#optional-module-loading-and-other-advanced-loading-scenarios
+ * Import Instrumentation class only in development mode
+ */
+const instrumentation: typeof Instrumentation = Options.development
+    && require('./Instrumentation').default;
+
 export interface AutoSubscription {
     store: StoreBase;
     callback: () => void;
@@ -216,7 +223,9 @@ export abstract class StoreBase {
         const storedCallbacks = this._gatheredCallbacks;
         this._gatheredCallbacks = new MapShim<SubscriptionCallbackFunction, string[]>();
 
-        Instrumentation.beginInvokeStoreCallbacks();
+
+        Options.development &&
+            instrumentation.beginInvokeStoreCallbacks();
 
         let callbacksCount = 0;
         storedCallbacks.forEach((keys, callback) => {
@@ -227,7 +236,8 @@ export abstract class StoreBase {
             callbacksCount++;
         });
 
-        Instrumentation.endInvokeStoreCallbacks(this.constructor, callbacksCount);
+        Options.development &&
+            instrumentation.endInvokeStoreCallbacks(this.constructor, callbacksCount);
 
         this._isTriggering = false;
 
