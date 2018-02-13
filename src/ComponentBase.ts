@@ -22,8 +22,9 @@ import { SubscriptionCallbackFunction, SubscriptionCallbackBuildStateFunction, S
  * @see https://www.typescriptlang.org/docs/handbook/modules.html#optional-module-loading-and-other-advanced-loading-scenarios
  * Import Instrumentation class only in development mode
  */
-const instrumentation: typeof Instrumentation = Options.development
-    && require('./Instrumentation').default;
+const instrumentation: typeof Instrumentation = process.env.NODE_ENV !== 'production'
+    ? require('./Instrumentation').default
+    : {};
 
 // Subscriptions without a key need some way to be identified in the SubscriptionLookup.
 const SubKeyNoKey = '%$^NONE';
@@ -436,13 +437,15 @@ export abstract class ComponentBase<P extends React.Props<any>, S extends Object
             sub.used = false;
         });
 
-        Options.development
-            && instrumentation.beginBuildState();
-
+        if (process.env.NODE_ENV !== 'production') {
+            instrumentation.beginBuildState();
+        }
+        
         const state = this._buildState(props, initialBuild);
 
-        Options.development &&
+        if (process.env.NODE_ENV !== 'production') {
             instrumentation.endBuildState(this.constructor);
+        }
 
         _.remove(this._handledAutoSubscriptions, subscription => {
             if (this._shouldRemoveAndCleanupAutoSubscription(subscription)) {
