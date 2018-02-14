@@ -65,7 +65,6 @@ import _ = require('./lodashMini');
 import assert = require('assert');
 
 import Decorator = require('./Decorator');
-import Options from './Options';
 import { StoreBase } from './StoreBase';
 
 type MetadataIndex = { [methodName: string]: { hasAutoSubscribeDecorator?: boolean; hasIndex?: boolean; index?: number } };
@@ -139,7 +138,7 @@ export function enableAutoSubscribeWrapper<T extends Function>(handler: AutoSubs
 
 // Returns a new function that warns if any auto-subscriptions would have been encountered.
 export function forbidAutoSubscribeWrapper<T extends () => any>(existingMethod: T, thisArg?: any): T {
-    if (!Options.development) {
+    if (process.env.NODE_ENV === 'production') {
         return thisArg ? <T><any>_.bind(existingMethod, thisArg) : existingMethod;
     }
     return createAutoSubscribeWrapper(undefined, AutoOptions.Forbid, existingMethod, thisArg);
@@ -173,7 +172,7 @@ export var AutoSubscribeStore: ClassDecorator = <TFunction extends Function>(fun
 
     target.__resubMetadata.__decorated = true;
 
-    if (Options.development) {
+    if (process.env.NODE_ENV !== 'production') {
         // Add warning for non-decorated methods.
         _.forEach(Object.getOwnPropertyNames(target), property => {
             if (_.isFunction(target[property]) && property !== 'constructor') {
@@ -307,7 +306,7 @@ export function disableWarnings<T extends Function>(target: InstanceTarget, meth
     // Record that the target is decorated.
     targetWithMetadata.__resubMetadata[methodName].hasAutoSubscribeDecorator = true;
 
-    if (!Options.development) {
+    if (process.env.NODE_ENV === 'production') {
         // Warnings are already disabled for production.
         return descriptor;
     }
@@ -354,7 +353,7 @@ export function disableWarnings<T extends Function>(target: InstanceTarget, meth
 // _buildState.
 export function warnIfAutoSubscribeEnabled<T extends Function>(target: InstanceTarget, methodName: string,
                 descriptor: TypedPropertyDescriptor<T>) {
-    if (!Options.development) {
+    if (process.env.NODE_ENV === 'production') {
         // Disable warning for production.
         return descriptor;
     }

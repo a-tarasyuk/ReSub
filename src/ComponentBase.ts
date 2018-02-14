@@ -103,7 +103,7 @@ export abstract class ComponentBase<P extends React.Props<any>, S extends Object
                     return derivedClassRender.call(this);
                 } catch (e) {
                     // Annoy devs so this gets fixed.
-                    if (Options.development) {
+                    if (process.env.NODE_ENV !== 'production') {
                         // tslint:disable-next-line
                         throw e;
                     }
