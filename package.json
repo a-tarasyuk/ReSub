@@ -5,20 +5,21 @@
   "author": "David de Regt <David.de.Regt@microsoft.com>",
   "scripts": {
     "prepare": "npm run build",
-    "tslint": "tslint -p tsconfig.json -r tslint.json -r ./node_modules/tslint-microsoft-contrib --fix || true",
-    "clean:dist": "rimraf dist",
+    "lint": "tslint -p tsconfig.json -r tslint.json -r ./node_modules/tslint-microsoft-contrib --fix || true",
+    "clean:dist": "rimraf dist dist-*",
     "build:types": "tsc -p tsconfig/types.json",
     "build:es2015": "tsc -p tsconfig.json",
     "build:cjs": "tsc -p tsconfig/cjs.json",
-    "build": "run-s clean:* tslint build:*",
+    "build": "run-s clean:* lint build:*",
     "karma:single-run": "karma start --singleRun",
     "karma:watch": "karma start",
     "test": "run-s clean:* karma:single-run",
-    "test:watch": "run-s clean:* karma:watch"
+    "test:watch": "run-s clean:* karma:watch",
+    "size": "size-limit"
   },
   "dependencies": {
-    "assert": "^1.4.1",
     "lodash": "^4.17.0",
+    "simple-assert-ok": "^0.1.9",
     "tslib": "^1.9.1"
   },
   "peerDependencies": {
@@ -48,12 +49,13 @@
     "react": "^16.2.0",
     "react-dom": "^16.2.0",
     "rimraf": "2.6.2",
+    "size-limit": "0.21.0",
     "ts-loader": "5.1.0",
+    "ts-node": "7.0.1",
     "tslint": "5.11.0",
     "tslint-microsoft-contrib": "5.2.1",
-    "typescript": "3.0.3",
-    "webpack": "4.18.0",
-    "ts-node": "7.0.1"
+    "typescript": "3.1.6",
+    "webpack": "4.18.0"
   },
   "repository": {
     "type": "git",
@@ -72,5 +74,15 @@
     "subscriptions",
     "stores"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "size-limit": [
+    {
+      "path": "dist-es2015/ReSub.js",
+      "limit": "18 Kb"
+    },
+    {
+      "path": "dist/ReSub.js",
+      "limit": "18 Kb"
+    }
+  ]
 }

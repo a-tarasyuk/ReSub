@@ -1,12 +1,12 @@
 /**
-* Options.ts
-* Author: David de Regt
-* Copyright: Microsoft 2015
-*
-* Basic options for ReSub.
-*/
+ * Options.ts
+ * Author: David de Regt
+ * Copyright: Microsoft 2015
+ *
+ * Basic options for ReSub.
+ */
 
-import * as _ from './lodashMini';
+import isEqual from 'lodash/isEqual';
 
 export interface IOptions {
     // Use this to shim calls to setTimeout/clearTimeout with any other service/local function you want
@@ -35,7 +35,7 @@ let OptionsVals: IOptions = {
     setTimeout: setTimeout.bind(null),
     clearTimeout: clearTimeout.bind(null),
 
-    shouldComponentUpdateComparator: _.isEqual.bind(_),
+    shouldComponentUpdateComparator: isEqual,
 
     defaultThrottleMs: 0,
 

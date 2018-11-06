@@ -1,22 +1,34 @@
 /**
-* StoreBase.ts
-* Author: David de Regt
-* Copyright: Microsoft 2015
-*
-* StoreBase acts as the base class to all stores.  Allows for pub/sub and event triggering at a variety of levels of the store.
-* It also supports key triggering deferral and aggregation.  Stores can mark that they're okay getting delayed triggers for X ms,
-* during which period the StoreBase gathers all incoming triggers and dedupes them, and releases them all at the same time at
-* the end of the delay period.  You can also globally push a trigger-block onto a stack and if the stack is nonzero, then
-* triggers will be queued for ALL stores until the block is popped, at which point all queued triggers will fire simultaneously.
-* Stores can mark themselves as opt-out of the trigger-block logic for critical stores that must flow under all conditions.
-*/
+ * StoreBase.ts
+ * Author: David de Regt
+ * Copyright: Microsoft 2015
+ *
+ * StoreBase acts as the base class to all stores.  Allows for pub/sub and event triggering at a variety of levels of the store.
+ * It also supports key triggering deferral and aggregation.  Stores can mark that they're okay getting delayed triggers for X ms,
+ * during which period the StoreBase gathers all incoming triggers and dedupes them, and releases them all at the same time at
+ * the end of the delay period.  You can also globally push a trigger-block onto a stack and if the stack is nonzero, then
+ * triggers will be queued for ALL stores until the block is popped, at which point all queued triggers will fire simultaneously.
+ * Stores can mark themselves as opt-out of the trigger-block logic for critical stores that must flow under all conditions.
+ */
 
-import * as assert from 'assert';
+import assert from 'simple-assert-ok';
+import clone from 'lodash/clone';
+import forEach from 'lodash/forEach';
+import flatten from 'lodash/flatten';
+import indexOf from 'lodash/indexOf';
+import pull from 'lodash/pull';
+import values from 'lodash/values';
+import uniq from 'lodash/uniq';
+import uniqueId from 'lodash/uniqueId';
+import union from 'lodash/union';
 
-import * as _ from './lodashMini';
 import Options from './Options';
 import Instrumentation from './Instrumentation';
 import { SubscriptionCallbackFunction } from './Types';
+
+interface Dictionary<T> {
+    [index: string]: T;
+}
 
 export interface AutoSubscription {
     store: StoreBase;
@@ -31,13 +43,13 @@ type CallbackMap = Map<SubscriptionCallbackFunction, CallbackMetadata>;
 export abstract class StoreBase {
     static readonly Key_All = '%!$all';
 
-    private readonly _subscriptions: _.Dictionary<SubscriptionCallbackFunction[]> = {};
-    private readonly _autoSubscriptions: _.Dictionary<AutoSubscription[]> = {};
+    private readonly _subscriptions: Dictionary<SubscriptionCallbackFunction[]> = {};
+    private readonly _autoSubscriptions: Dictionary<AutoSubscription[]> = {};
 
     private _subTokenNum = 1;
     private readonly _subsByNum: { [token: number]: { key: string, callback: SubscriptionCallbackFunction, } } = {};
 
-    readonly storeId = _.uniqueId('store');
+    readonly storeId = uniqueId('store');
 
     private _throttleData: { timerId: number, callbackTime: number } | undefined;
 
@@ -53,7 +65,7 @@ export abstract class StoreBase {
 
     static popTriggerBlock() {
         this._triggerBlockCount--;
-        assert.ok(this._triggerBlockCount >= 0, 'Over-popped trigger blocks!');
+        assert(this._triggerBlockCount >= 0, 'Over-popped trigger blocks!');
 
         if (this._triggerBlockCount === 0) {
             StoreBase._resolveCallbacks();
@@ -62,7 +74,7 @@ export abstract class StoreBase {
 
     static setThrottleStatus(enabled: boolean) {
         this._bypassThrottle = !enabled;
-        
+
         StoreBase._resolveCallbacks();
     }
 
@@ -97,38 +109,37 @@ export abstract class StoreBase {
         const bypassBlock = this._bypassTriggerBlocks;
 
         // trigger(0) is valid, ensure that we catch this case
-        if (!keyOrKeys && !_.isNumber(keyOrKeys)) {
+        if (!keyOrKeys && typeof keyOrKeys !== 'number') {
             // Inspecific key, so generic callback call
-            const allSubs = _.flatten(_.values(this._subscriptions));
+            const allSubs = flatten(values(this._subscriptions));
 
-            _.forEach(allSubs, sub => {
-                this._setupAllKeySubscription(sub, throttledUntil, bypassBlock);
-            });
-            _.forEach(_.flatten(_.values(this._autoSubscriptions)),
-                sub => {
-                    this._setupAllKeySubscription(sub.callback, throttledUntil, bypassBlock);
-                });
+            forEach(allSubs, sub => this._setupAllKeySubscription(sub, throttledUntil, bypassBlock));
+            forEach(flatten(values(this._autoSubscriptions)), sub => (
+                this._setupAllKeySubscription(sub.callback, throttledUntil, bypassBlock)
+            ));
         } else {
-            const keys = _.map(_.isArray(keyOrKeys) ? keyOrKeys : [keyOrKeys], key => _.isNumber(key) ? key.toString() : key);
-            // Key list, so go through each key and queue up the callback
-            _.forEach(keys, key => {
-                _.forEach(this._subscriptions[key], callback => {
-                    this._setupSpecificKeySubscription([key], callback, throttledUntil, bypassBlock);
-                });
+            const keys = (Array.isArray(keyOrKeys) ? keyOrKeys : [keyOrKeys])
+                .map(key => typeof key === 'number' ? key.toString() : key);
 
-                _.forEach(this._autoSubscriptions[key], sub => {
-                    this._setupSpecificKeySubscription([key], sub.callback, throttledUntil, bypassBlock);
-                });
+            // Key list, so go through each key and queue up the callback
+            forEach(keys, key => {
+                forEach(this._subscriptions[key], callback => (
+                    this._setupSpecificKeySubscription([key], callback, throttledUntil, bypassBlock)
+                ));
+
+                forEach(this._autoSubscriptions[key], sub => (
+                    this._setupSpecificKeySubscription([key], sub.callback, throttledUntil, bypassBlock)
+                ));
             });
 
             // Go through each of the all-key subscriptions and add the full key list to their gathered list
-            _.forEach(this._subscriptions[StoreBase.Key_All], callback => {
-                this._setupSpecificKeySubscription(keys, callback, throttledUntil, bypassBlock);
-            });
+            forEach(this._subscriptions[StoreBase.Key_All], callback => (
+                this._setupSpecificKeySubscription(keys, callback, throttledUntil, bypassBlock)
+            ));
 
-            _.forEach(this._autoSubscriptions[StoreBase.Key_All], sub => {
-                this._setupSpecificKeySubscription(keys, sub.callback, throttledUntil, bypassBlock);
-            });
+            forEach(this._autoSubscriptions[StoreBase.Key_All], sub => (
+                this._setupSpecificKeySubscription(keys, sub.callback, throttledUntil, bypassBlock)
+            ));
         }
 
         if (!throttledUntil || bypassBlock) {
@@ -136,7 +147,7 @@ export abstract class StoreBase {
         }
     }
 
-    private static _updateExistingMeta(meta: CallbackMetadata | undefined, throttledUntil: number|undefined, bypassBlock: boolean) {
+    private static _updateExistingMeta(meta: CallbackMetadata | undefined, throttledUntil: number | undefined, bypassBlock: boolean) {
         if (!meta) {
             return;
         }
@@ -174,7 +185,7 @@ export abstract class StoreBase {
         StoreBase._updateExistingMeta(existingMeta, throttledUntil, bypassBlock);
         if (existingMeta === undefined) {
             // We need to clone keys in order to prevent accidental by-ref mutations
-            StoreBase._pendingCallbacks.set(callback, { keys: _.clone(keys), throttledUntil, bypassBlock });
+            StoreBase._pendingCallbacks.set(callback, { keys: clone(keys), throttledUntil, bypassBlock });
         } else if (existingMeta.keys === null) {
             // Do nothing since it's already an all-key-trigger
         } else {
@@ -191,7 +202,7 @@ export abstract class StoreBase {
         this._throttleData = undefined;
         StoreBase._resolveCallbacks();
     }
-    
+
     private static _resolveCallbacks() {
         // Prevent a store from triggering while it's already in a trigger state
         if (StoreBase._isTriggering) {
@@ -205,7 +216,7 @@ export abstract class StoreBase {
 
         let callbacksCount = 0;
         const currentTime = Date.now();
-        
+
         // Capture the callbacks we need to call
         const callbacks: [SubscriptionCallbackFunction, string[]|undefined][] = [];
         this._pendingCallbacks.forEach((meta, callback, map) => {
@@ -219,7 +230,7 @@ export abstract class StoreBase {
                 return;
             }
             // Do a quick dedupe on keys
-            const uniquedKeys = meta.keys ? _.uniq(meta.keys) : meta.keys;
+            const uniquedKeys = meta.keys ? uniq(meta.keys) : meta.keys;
             // Convert null key (meaning "all") to undefined for the callback.
             callbacks.push([callback, uniquedKeys || undefined]);
             map.delete(callback);
@@ -242,10 +253,10 @@ export abstract class StoreBase {
     // notified of any triggered events, or you can use a key to filter it down to specific event keys you want.
     // Returns a token you can pass back to unsubscribe.
     subscribe(callback: SubscriptionCallbackFunction, rawKey: string|number = StoreBase.Key_All): number {
-        const key = _.isNumber(rawKey) ? rawKey.toString() : rawKey;
+        const key = typeof rawKey === 'number' ? rawKey.toString() : rawKey;
 
         // Adding extra type-checks since the key is often the result of following a string path, which is not type-safe.
-        assert.ok(key && _.isString(key), 'Trying to subscribe to invalid key: "' + key + '"');
+        assert(key && typeof key === 'string', `Trying to subscribe to invalid key: "${ key }"`);
 
         let callbacks = this._subscriptions[key];
         if (!callbacks) {
@@ -265,19 +276,19 @@ export abstract class StoreBase {
 
     // Unsubscribe from a previous subscription.  Pass in the token the subscribe function handed you.
     unsubscribe(subToken: number) {
-        assert.ok(this._subsByNum[subToken], 'No subscriptions found for token ' + subToken);
+        assert(this._subsByNum[subToken], `No subscriptions found for token ${ subToken }`);
 
-        let key = this._subsByNum[subToken].key;
-        let callback = this._subsByNum[subToken].callback;
+        const key = this._subsByNum[subToken].key;
+        const callback = this._subsByNum[subToken].callback;
         delete this._subsByNum[subToken];
 
         // Remove this callback set from our tracking lists
         StoreBase._pendingCallbacks.delete(callback);
 
-        let callbacks = this._subscriptions[key];
-        assert.ok(callbacks, 'No subscriptions under key ' + key);
+        const callbacks = this._subscriptions[key];
+        assert(callbacks, `No subscriptions under key ${ key }`);
 
-        const index = _.indexOf(callbacks, callback);
+        const index = indexOf(callbacks, callback);
         if (index !== -1) {
             callbacks.splice(index, 1);
             if (callbacks.length === 0) {
@@ -289,7 +300,7 @@ export abstract class StoreBase {
                 }
             }
         } else {
-            assert.ok(false, 'Subscription not found during unsubscribe...');
+            assert(false, 'Subscription not found during unsubscribe...');
         }
     }
 
@@ -309,13 +320,14 @@ export abstract class StoreBase {
 
     removeAutoSubscription(subscription: AutoSubscription) {
         const key = subscription.key;
+        const subs = this._autoSubscriptions[key];
 
-        let subs = this._autoSubscriptions[key];
-        assert.ok(subs, 'No subscriptions under key ' + key);
+        assert(subs, `No subscriptions under key ${ key }`);
 
         const oldLength = subs.length;
-        _.pull(subs, subscription);
-        assert.equal(subs.length, oldLength - 1, 'Subscription not found during unsubscribe...');
+        pull(subs, subscription);
+
+        assert(subs.length === oldLength - 1, 'Subscription not found during unsubscribe...');
 
         StoreBase._pendingCallbacks.delete(subscription.callback);
 
@@ -338,7 +350,7 @@ export abstract class StoreBase {
     }
 
     protected _getSubscriptionKeys() {
-        return _.union(_.keys(this._subscriptions), _.keys(this._autoSubscriptions));
+        return union(Object.keys(this._subscriptions), Object.keys(this._autoSubscriptions));
     }
 
     protected _isTrackingKey(key: string) {
