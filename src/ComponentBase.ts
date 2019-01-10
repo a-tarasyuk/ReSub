@@ -188,7 +188,8 @@ export abstract class ComponentBase<P extends React.Props<any>, S extends Object
             return undefined;
         }
 
-        let nsubscription: StoreSubscriptionInternal<P, S> = _.extend(subscription, {
+        const nsubscription: StoreSubscriptionInternal<P, S> = {
+            ...subscription,
             // Wrap the given callback (if any) to provide extra functionality.
             _callback: subscription.callbackBuildState
                 // The caller wants auto-subscriptions, so enable them for the duration of the given callback.
@@ -201,7 +202,7 @@ export abstract class ComponentBase<P extends React.Props<any>, S extends Object
                     : undefined,
             _lambda: this._onSubscriptionChanged.bind(this, subscription),
             _id: ComponentBase._nextSubscriptionId++
-        });
+        };
 
         if (nsubscription.keyPropertyName) {
             const key = this._findKeyFromPropertyName(this.props, nsubscription.keyPropertyName);

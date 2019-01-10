@@ -16,7 +16,6 @@ import isEmpty from 'lodash/isEmpty';
 import isEqual from 'lodash/isEqual';
 import forEach from 'lodash/forEach';
 import indexOf from 'lodash/indexOf';
-import extend from 'lodash/extend';
 import remove from 'lodash/remove';
 import values from 'lodash/values';
 import union from 'lodash/union';
@@ -42,7 +41,6 @@ export {
     isEqual,
     forEach,
     indexOf,
-    extend,
     remove,
     values,
     union,
