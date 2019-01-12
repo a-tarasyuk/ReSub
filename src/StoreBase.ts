@@ -92,7 +92,7 @@ export abstract class StoreBase {
         const bypassBlock = this._bypassTriggerBlocks;
 
         // trigger(0) is valid, ensure that we catch this case
-        if (!keyOrKeys && !_.isNumber(keyOrKeys)) {
+        if (!keyOrKeys && typeof keyOrKeys !== 'number') {
             // Inspecific key, so generic callback call
             const allSubs = _.flatten(_.values(this._subscriptions));
 

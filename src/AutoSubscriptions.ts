@@ -64,7 +64,7 @@
 import * as _ from './lodashMini';
 import * as Decorator from './Decorator';
 import Options from './Options';
-import { assert, normalizeKeys, KeyOrKeys } from './utils';
+import { assert, normalizeKeys, KeyOrKeys, normalizeKey } from './utils';
 import { StoreBase } from './StoreBase';
 
 type MetadataIndex = {
@@ -252,19 +252,12 @@ function makeAutoSubscribeDecorator(shallow = false, defaultKeyValues: string[])
 
             // Try to find an @key parameter in the target's metadata.
             if (metaForMethod.hasIndex) {
-                let keyArg: number | string = args[metaForMethod.index];
+                const keyArg = args[metaForMethod.index];
 
-                if (_.isNumber(keyArg)) {
-                    keyArg = keyArg.toString();
-                }
+                assert(typeof keyArg === 'number' || typeof keyArg === 'string', `@key parameter must be given a non-empty ` +
+                    `string or number: "${ methodNameString }"@${ metaForMethod.index } was given ${ JSON.stringify(keyArg) }`);
 
-                assert(keyArg, `@key parameter must be given a non-empty string or number: ` +
-                    `"${ methodNameString }"@${ metaForMethod.index } was given ${ JSON.stringify(keyArg) }`);
-
-                assert(_.isString(keyArg), `@key parameter must be given a string or number: ` +
-                    `"${ methodNameString }"@${ metaForMethod.index }`);
-
-                specificKeyValues = [keyArg];
+                specificKeyValues = [normalizeKey(keyArg)];
             }
 
             let wasInAutoSubscribe: boolean;
@@ -297,7 +290,7 @@ function makeAutoSubscribeDecorator(shallow = false, defaultKeyValues: string[])
 
 export const autoSubscribe = makeAutoSubscribeDecorator(true, [StoreBase.Key_All]);
 export function autoSubscribeWithKey(keyOrKeys: KeyOrKeys) {
-    assert(keyOrKeys || _.isNumber(keyOrKeys), 'Must specify a key when using autoSubscribeWithKey');
+    assert(keyOrKeys || typeof keyOrKeys === 'number', 'Must specify a key when using autoSubscribeWithKey');
     return makeAutoSubscribeDecorator(true, normalizeKeys(keyOrKeys));
 }
 

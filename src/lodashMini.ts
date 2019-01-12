@@ -10,7 +10,6 @@
 import isFunction from 'lodash/isFunction';
 import isString from 'lodash/isString';
 import uniqueId from 'lodash/uniqueId';
-import isNumber from 'lodash/isNumber';
 import flatten from 'lodash/flatten';
 import isEmpty from 'lodash/isEmpty';
 import isEqual from 'lodash/isEqual';
@@ -35,7 +34,6 @@ export {
     isFunction,
     isString,
     uniqueId,
-    isNumber,
     flatten,
     isEmpty,
     isEqual,
